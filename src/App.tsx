@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { MouseEventHandler, useCallback, useEffect, useState } from "react";
 import * as images from './assets/images';
+import './assets/scss/index.scss';
 
 export const App = () => {
   const [canvas, setCanvas] = useState<HTMLCanvasElement>();
-  const onRefCanvas = useCallback( (node: HTMLCanvasElement) => setCanvas(node), [])
+  const onRefCanvas = useCallback((node: HTMLCanvasElement) => setCanvas(node), [])
   const simulatedApi = () => Object.values(images);
 
   useEffect(() => {
@@ -15,22 +16,43 @@ export const App = () => {
       IMG.src = src;
       return IMG
     });
- 
+
     ctx && (ctx.fillStyle = "rgb(242, 242, 242)");
     ctx?.fillRect(0, 0, canvas.width, canvas.height);
     renderCanvas(images, 1, canvas, -200, ctx);
     renderCanvas(images, 2, canvas, canvas.width * 1 - 200, ctx);
-    
-    
+
+
   }, [canvas]);
-  
+
+  const onCursor = useCallback((type: 'grab' | 'active'): MouseEventHandler<HTMLCanvasElement> => (event) => {
+    if (!canvas) return;
+    const el = (event.target as HTMLCanvasElement);
+    const hasActiveClass =  el.classList.contains(type)
+    hasActiveClass 
+      ? (event.target as HTMLCanvasElement)?.classList.remove(type) 
+      : (event.target as HTMLCanvasElement)?.classList.add(type);
+  }, [canvas])
+  const onDrag: MouseEventHandler<HTMLCanvasElement> = useCallback((event)=>{
+    
+  },[])
   return (
     <div className="slideshow">
       <header className="slideshow-header">
         <h1> Frontend Code Challenge</h1>
       </header>
-      <main id="example">
-        <canvas ref={onRefCanvas} id="image_slider" width={640} height={480} ></canvas>
+      <main className="example">
+        <canvas
+          ref={onRefCanvas}
+          className="image_slider"
+          width={640}
+          height={480}
+          onMouseMove={onDrag}
+          onMouseEnter={onCursor('active')}
+          onMouseLeave={onCursor('active')}
+          onMouseDown={onCursor('grab')}
+          onMouseUp={onCursor('grab')}
+        ></canvas>
         <aside>Drag to change image</aside>
       </main>
 
@@ -40,19 +62,19 @@ export const App = () => {
 
 export default App;
 
-const scaleForImage =  ( image: HTMLImageElement, canvas: HTMLCanvasElement) => {
-  const aspect =  canvas.width / canvas.height;
-  const ratio =  image.width / image.height;
-  return ratio >= aspect 
+const scaleForImage = (image: HTMLImageElement, canvas: HTMLCanvasElement) => {
+  const aspect = canvas.width / canvas.height;
+  const ratio = image.width / image.height;
+  return ratio >= aspect
     ? canvas.width / image.width
-    : aspect > ratio 
+    : aspect > ratio
       ? canvas.height / image.height
       : canvas.width
-  
+
 }
- 
- 
-const indecesForOffset =  (offset: number, numImg: number, sceneWidth: number) => {
+
+
+const indecesForOffset = (offset: number, numImg: number, sceneWidth: number) => {
   return [Math.floor(offset / sceneWidth * numImg), Math.ceil(offset / sceneWidth * numImg)]
 };
 
