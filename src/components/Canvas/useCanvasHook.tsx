@@ -1,20 +1,66 @@
 import { MouseEventHandler, useCallback, useEffect, useState, useRef } from "react";
-import { images } from "../../services";
-import { getMousePositionOnCanvas, renderCanvas } from "../../utils";
+import { simulatedApi } from "../../services";
+import { getMousePositionOnCanvas, indecesForOffset, scaleForImage, updateOffset } from "../../utils";
 
 export const useCanvasHook = () => {
+    const  [images, setImages] = useState<HTMLImageElement[]>();
     const [canvas, setCanvas] = useState<HTMLCanvasElement>();
     const isGrabbing = useRef<boolean>(false);
-    // refactor //
-    const prevPosion = useRef<number>(0);
-    const position = useRef<number>(0);
-    
+    const mousePostion = useRef({
+        prevPosition: 0,
+        actual: 0
+    })
+
     const onRefCanvas = useCallback((node: HTMLCanvasElement) => setCanvas(node), [])
 
+    const renderCanvas = useCallback(( offset: number) => {
+        if(!canvas || !images?.length)return;
+       
+        const ctx = canvas.getContext('2d');
+        ctx && (ctx.fillStyle = "rgb(242, 242, 242)");
+        ctx?.fillRect(0, 0, canvas.width, canvas.height);
+
+        const indeces = indecesForOffset(offset, images.length, images.length * canvas.width);
+
+        const callback = (index: number, image: HTMLImageElement) => {
+            const width = image.width * scaleForImage(image, canvas);
+            const height = image.height * scaleForImage(image, canvas);
+            const x = (canvas.width * index - offset) + (canvas.width - width) / 2;
+            const y = (canvas.height - height) / 2;
+            ctx?.drawImage(image, Math.round(x), Math.round(y), Math.round(width), Math.round(height),)
+        }
+        
+        indeces.forEach( index => callback(index, images[index]))
+
+    },[canvas, images]);
+    
+    useEffect(()=>{
+        simulatedApi()
+            .then(setImages)
+            .catch(console.error)
+    },[])
     useEffect(() => {
-        if (!canvas) return;
-        renderCanvas(images, canvas, position.current);
-    }, [canvas]);
+        renderCanvas(mousePostion.current.actual);
+    }, [ renderCanvas]);
+   
+
+    const onDrag: MouseEventHandler<HTMLCanvasElement> = useCallback((event) => {
+
+        if (!canvas || !images?.length) return
+        if (!isGrabbing.current) return;
+
+
+        const updatePosition = updateOffset(canvas, mousePostion, images )
+        const { x } = getMousePositionOnCanvas(canvas, event);
+        const offset = updatePosition(x);
+
+        if (!offset) return;
+
+        mousePostion.current.actual = offset;
+        renderCanvas(mousePostion.current.actual);
+        mousePostion.current.prevPosition = x;
+   
+    }, [canvas, images, renderCanvas]);
 
     const onCursor = useCallback((type: 'grab' | 'active', action?: 'up' | 'down'): MouseEventHandler<HTMLCanvasElement> =>
         (event) => {
@@ -27,35 +73,15 @@ export const useCanvasHook = () => {
 
             isGrabbing.current = type === 'grab' && action === 'down';
 
-            type === 'grab' && action === 'down'
-                ? (prevPosion.current = getMousePositionOnCanvas(canvas, event).x)
-                : (prevPosion.current = 0)
+            isGrabbing.current
+                ? (mousePostion.current.prevPosition = getMousePositionOnCanvas(canvas, event).x)
+                : (mousePostion.current.prevPosition = 0)
 
         }, [canvas]);
-    const onDrag: MouseEventHandler<HTMLCanvasElement> = useCallback((event) => {
 
-        if (!canvas) return
-        if (!isGrabbing.current) return;
-        const { x } = getMousePositionOnCanvas(canvas, event);
-
-        position.current = position.current + (prevPosion.current - x);
-
-        const sceneWidth = canvas.width * images.length;
-
-        const offset = position.current > 0 && position.current < sceneWidth - canvas.width
-            ? position.current
-            : position.current < 0
-                ? 0
-                : position.current > sceneWidth - canvas.width
-                    ? sceneWidth - canvas.width
-                    : 0
-
-        renderCanvas(images, canvas, offset);
-        prevPosion.current = x;
-
-
-    }, [canvas]);
-  return {
-      onRefCanvas, onDrag, onCursor
-  }
+    return {
+        onRefCanvas, onDrag, onCursor
+    }
 }
+
+
