@@ -29,13 +29,12 @@ export const useCanvasHook = () => {
         if (!canvas || !images?.length) return
         if (!isGrabbing.current) return;
 
-        const actual = getMousePositionOnCanvas(canvas, event);
-        const offset = updateOffset(canvas, mousePostion, images)(actual);
-        if (!offset) return;
-
-        mousePostion.current.actual = offset;
+        const actualMousePosition = getMousePositionOnCanvas(canvas, event);
+        const updateActualPositionWith = updateOffset(canvas, mousePostion, images);
+        mousePostion.current.actual = updateActualPositionWith(actualMousePosition);
+        
         drawCanvas(canvas, mousePostion.current.actual, images);
-        mousePostion.current.prevPosition = actual;
+        mousePostion.current.prevPosition = actualMousePosition;
 
     }, [canvas, images]);
 
